@@ -1,0 +1,47 @@
+### Tổng quan về JWT
+
+**JWT (JSON Web Token)**: Tiêu chuẩn truyền thông tin an toàn dưới dạng chuỗi JSON, dùng cho xác thực và phân quyền.
+
+**Điểm mạnh**:
+- Nhỏ gọn, tự chứa, stateless.
+- Phù hợp hệ thống phân tán, đa nền tảng.
+- Bảo mật cao với chữ ký số.
+
+**Điểm yếu**:
+- Không thu hồi tức thời.
+- Kích thước lớn nếu payload nhiều dữ liệu.
+- Rủi ro nếu cấu hình sai hoặc lưu trữ không an toàn.
+
+---
+
+### Cấu trúc JWT
+
+**Dạng**: `Header.Payload.Signature` (mã hóa Base64Url, nối bằng dấu `.`).  
+**Ví dụ**: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c`
+
+1. **Header**:  
+   ```json
+   {"alg":"HS256","typ":"JWT"}
+   ```
+   - `alg`: Thuật toán ký (VD: HS256).  
+   - `typ`: Loại token (JWT).  
+   → Xác định cách ký và loại token.
+
+2. **Payload**:  
+   ```json
+   {"sub":"1234567890","name":"John Doe","iat":1516239022}
+   ```
+   - Chứa claims: `sub` (ID), `name` (tên), `iat` (thời gian phát hành),...  
+   → Mang thông tin người dùng/quyền.
+
+3. **Signature**:  
+   - Ký header + payload bằng khóa bí mật.  
+   → Đảm bảo toàn vẹn và xác thực.
+
+---
+
+### Trường hợp sử dụng
+- **Xác thực người dùng**: Đăng nhập, tạo token chứa thông tin user.  
+- **Phân quyền**: Lưu quyền truy cập trong payload.  
+- **Trao đổi thông tin**: Gửi dữ liệu an toàn giữa client-server.  
+- **Single Sign-On (SSO)**: Dùng token chung cho nhiều dịch vụ.

@@ -1,0 +1,66 @@
+### Thực hành giải mã chuỗi JWT
+
+
+#### Chuỗi JWT mẫu
+Chuỗi JWT:  
+```
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE1MTYyNDI2MjIsInJvbGUiOiJhZG1pbiJ9.5s4v4u3z8x0K7p9m2n1r5t6y7u8i9o0p1q2r3s4t5u6v7w8
+```
+
+#### Giải mã bằng jwt.io
+Sử dụng công cụ **jwt.io** (hoặc thư viện như `jsonwebtoken` trong Node.js) để giải mã chuỗi JWT. Chuỗi trên được chia thành 3 phần: **Header**, **Payload**, **Signature**.
+
+1. **Header** (giải mã):  
+   ```json
+   {
+     "alg": "HS256",
+     "typ": "JWT"
+   }
+   ```
+   - **Ý nghĩa**: Sử dụng thuật toán HS256 (HMAC-SHA256) và loại token là JWT.
+
+2. **Payload** (giải mã):  
+   ```json
+   {
+     "sub": "1234567890",
+     "name": "John Doe",
+     "iat": 1516239022,
+     "exp": 1516242622,
+     "role": "admin"
+   }
+   ```
+
+3. **Signature**:  
+   - Phần chữ ký (`5s4v4u3z...`) được tạo từ header, payload, và khóa bí mật. Không thể giải mã trực tiếp, chỉ xác minh được nếu có khóa bí mật.
+
+---
+
+#### Phân tích các trường trong Payload
+
+| Trường | Giá trị         | Ý nghĩa                                                                 |
+|--------|-----------------|-------------------------------------------------------------------------|
+| `sub`  | `1234567890`   | **Subject**: Định danh duy nhất của người dùng (thường là ID người dùng). |
+| `name` | `John Doe`     | **Tên người dùng**: Thông tin bổ sung về danh tính (tùy chỉnh).          |
+| `iat`  | `1516239022`   | **Issued At**: Thời gian phát hành token (timestamp, 18/01/2018).        |
+| `exp`  | `1516242622`   | **Expiration**: Thời gian hết hạn token (18/01/2018, 1 giờ sau `iat`).   |
+| `role` | `admin`        | **Quyền hạn**: Vai trò của người dùng, xác định quyền truy cập.          |
+
+**Ghi chú**:
+- `sub`, `iat`, `exp` là **Registered Claims** (chuẩn JWT).
+- `name`, `role` là **Private Claims** (tùy chỉnh bởi ứng dụng).
+
+---
+
+#### Nhận xét về rủi ro bảo mật
+
+1. **Lộ thông tin nhạy cảm trong Payload**:  
+   - Payload được mã hóa Base64Url, **không phải mã hóa bảo mật**, nên bất kỳ ai cũng có thể giải mã để đọc thông tin (như `name`, `role`).  
+   - Nếu payload chứa dữ liệu nhạy cảm (VD: email, số điện thoại, địa chỉ), kẻ tấn công có thể truy cập thông tin này mà không cần khóa bí mật.  
+   - **Rủi ro**: Lộ thông tin cá nhân hoặc quyền hạn, dẫn đến tấn công giả mạo hoặc khai thác quyền admin.
+
+2. **Khuyến nghị giảm thiểu rủi ro**:  
+   - **Hạn chế thông tin trong payload**: Chỉ lưu các thông tin cần thiết (VD: ID, role) và tránh dữ liệu nhạy cảm như mật khẩu, thông tin cá nhân.  
+   - **Sử dụng HTTPS**: Đảm bảo JWT được truyền qua kênh mã hóa để tránh bị chặn bắt.  
+   - **Ký và xác minh an toàn**: Dùng khóa bí mật mạnh, tránh thuật toán yếu như `none`.  
+   - **Lưu trữ an toàn**: Tránh lưu JWT ở nơi dễ bị tấn công như `localStorage`; thay vào đó, dùng `HttpOnly cookies` để giảm nguy cơ XSS.
+

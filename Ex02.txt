@@ -1,0 +1,63 @@
+### Quy trình xác thực JWT
+
+
+### Sơ đồ quy trình xác thực JWT
+
+```
+Client                     Server
+  |                          |
+  | 1. Gửi thông tin đăng nhập (username/password) |
+  |------------------------->|
+  |                          | 2. Xác thực thông tin
+  |                          | 3. Tạo JWT
+  | 4. Nhận JWT              |<-------------------------
+  |                          |
+  | 5. Gửi yêu cầu với JWT (Authorization header) |
+  |------------------------->|
+  |                          | 6. Kiểm tra JWT
+  |                          | 7. Trả về tài nguyên
+  | 8. Nhận phản hồi         |<-------------------------
+```
+
+---
+
+### Mô tả chi tiết các bước và vai trò
+
+1. **Client gửi thông tin đăng nhập**:  
+   - **Hành động**: Client gửi thông tin (username/password) tới server qua API đăng nhập (VD: POST `/login`).  
+   - **Vai trò**: Bắt đầu quá trình xác thực, cung cấp thông tin để server kiểm tra danh tính.
+
+2. **Server xác thực thông tin**:  
+   - **Hành động**: Server kiểm tra thông tin đăng nhập với cơ sở dữ liệu (hoặc dịch vụ xác thực).  
+   - **Vai trò**: Đảm bảo thông tin hợp lệ trước khi cấp quyền truy cập.
+
+3. **Server tạo JWT**:  
+   - **Hành động**: Nếu thông tin hợp lệ, server tạo JWT gồm **Header** (thuật toán), **Payload** (thông tin user, như ID, quyền), và **Signature** (ký bằng khóa bí mật).  
+   - **Vai trò**: Tạo token chứa thông tin người dùng và đảm bảo tính toàn vẹn.
+
+4. **Server gửi JWT về Client**:  
+   - **Hành động**: Server trả về JWT trong phản hồi (VD: JSON `{ "token": "eyJhbGci..." }`).  
+   - **Vai trò**: Cung cấp token để client sử dụng trong các yêu cầu sau.
+
+5. **Client gửi yêu cầu với JWT**:  
+   - **Hành động**: Client lưu JWT (thường trong localStorage hoặc cookie) và gửi trong header `Authorization: Bearer <JWT>` cho các yêu cầu API bảo mật.  
+   - **Vai trò**: Chứng minh danh tính và quyền truy cập của client.
+
+6. **Server kiểm tra JWT**:  
+   - **Hành động**: Server giải mã header và payload, kiểm tra chữ ký với khóa bí mật, xác minh thời hạn (`exp`), và các claims khác.  
+   - **Vai trò**: Đảm bảo token hợp lệ, không bị giả mạo, và người dùng có quyền truy cập.
+
+7. **Server trả về tài nguyên**:  
+   - **Hành động**: Nếu JWT hợp lệ, server xử lý yêu cầu và trả về dữ liệu (VD: thông tin tài khoản, tài nguyên bảo mật).  
+   - **Vai trò**: Cung cấp dữ liệu được yêu cầu dựa trên quyền hạn.
+
+8. **Client nhận phản hồi**:  
+   - **Hành động**: Client nhận dữ liệu từ server và hiển thị/xử lý theo nhu cầu.  
+   - **Vai trò**: Hoàn thành giao dịch, cho phép người dùng truy cập tài nguyên.
+
+---
+
+### Lưu ý
+- **Bảo mật**: JWT nên được gửi qua HTTPS và lưu trữ an toàn để tránh tấn công XSS hoặc CSRF.
+- **Thời hạn**: Payload thường chứa `exp` để giới hạn thời gian sống của token, yêu cầu làm mới (refresh token) nếu cần.
+- **Stateless**: Server không lưu trạng thái JWT, mọi thông tin cần thiết nằm trong token.
