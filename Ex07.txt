@@ -1,0 +1,62 @@
+Báo Cáo Luồng Xác Thực và Phân Quyền
+1. Cấu trúc Payload JWT
+{
+  "sub": "user_id",           // ID người dùng
+  "name": "user_name",        // Tên người dùng
+  "role": "admin|user|guest", // Vai trò
+  "iat": 1698765432,         // Thời gian phát hành
+  "exp": 1698772432          // Thời gian hết hạn
+}
+
+2. Luồng Xác Thực và Phân Quyền
+
+Đăng nhập: 
+
+Client gửi username và password tới endpoint /login.
+Server kiểm tra thông tin, tạo JWT với payload chứa role.
+Trả về JWT cho client.
+
+
+Phân quyền:
+
+Client gửi request kèm JWT trong header Authorization: Bearer <token>.
+Server giải mã JWT, kiểm tra role để xác định quyền truy cập.
+
+
+Ví dụ Endpoint:
+
+GET /users (yêu cầu role: admin): Lấy danh sách người dùng.
+POST /content (yêu cầu role: user hoặc admin): Tạo nội dung.
+GET /public (yêu cầu role: guest, user, hoặc admin): Xem nội dung công khai.
+
+
+Kiểm tra quyền truy cập:
+
+Middleware giải mã JWT, kiểm tra role so với yêu cầu endpoint.
+Nếu hợp lệ, cho phép truy cập; nếu không, trả về lỗi 403 Forbidden.
+
+
+
+3. Middleware Kiểm Tra Phân Quyền (Node.js/Express)
+const jwt = require('jsonwebtoken');
+
+const authorize = (requiredRole) => (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'No token provided' });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (requiredRole && decoded.role !== requiredRole) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
+    }
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: 'Invalid token' });
+  }
+};
+
+// Sử dụng
+app.get('/users', authorize('admin'), (req, res) => {
+  res.json({ users: [] });
+});

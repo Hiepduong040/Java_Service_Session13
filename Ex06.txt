@@ -1,0 +1,193 @@
+
+### 1. Các tình huống lỗi phổ biến của JWT
+
+- **JWT hết hạn (Expired Token)**:
+  - Token đã vượt quá thời gian sống (`exp`) được định nghĩa trong payload.
+  - Nguyên nhân: Token không được làm mới sau khi hết hạn.
+
+- **JWT không hợp lệ (Invalid Token)**:
+  - Token không đúng định dạng JWT (thiếu hoặc sai cấu trúc: header, payload, signature).
+  - Token bị sửa đổi (tampered) hoặc chữ ký (signature) không khớp với secret key của server.
+  - Thuật toán mã hóa (alg) không khớp với thuật toán server mong đợi.
+
+- **JWT bị sửa đổi (Tampered Token)**:
+  - Nội dung header hoặc payload bị thay đổi, dẫn đến chữ ký không còn hợp lệ.
+  - Nguyên nhân: Ai đó cố ý chỉnh sửa token để giả mạo thông tin.
+
+- **JWT thiếu (Missing Token)**:
+  - Client gửi yêu cầu mà không có token trong header (thường là `Authorization: Bearer <token>`).
+  - Nguyên nhân: Client không gửi token hoặc gửi sai định dạng.
+
+- **JWT không được hỗ trợ (Unsupported Token)**:
+  - Token sử dụng thuật toán mã hóa không được server hỗ trợ (ví dụ: server chỉ hỗ trợ HS256 nhưng token dùng RS256).
+  - Nguyên nhân: Cấu hình thuật toán không đồng bộ giữa client và server.
+
+- **JWT không đủ quyền (Insufficient Scope/Permissions)**:
+  - Token hợp lệ nhưng không chứa các quyền (`scope` hoặc `claims`) cần thiết để truy cập tài nguyên.
+  - Nguyên nhân: Người dùng cố truy cập tài nguyên mà họ không được phép.
+
+- **JWT bị thu hồi (Revoked Token)**:
+  - Token vẫn hợp lệ về mặt kỹ thuật nhưng đã bị server thu hồi (ví dụ: người dùng bị khóa tài khoản hoặc logout chủ động).
+  - Nguyên nhân: Server duy trì danh sách đen (blacklist) hoặc cơ chế thu hồi token.
+
+### 2. Ví dụ response server gửi về khi gặp lỗi
+Server thường trả về mã trạng thái HTTP (thường là 401 Unauthorized hoặc 403 Forbidden) kèm thông báo lỗi chi tiết trong body. Dưới đây là các ví dụ:
+
+- **JWT hết hạn**:
+  ```json
+  {
+    "error": "token_expired",
+    "message": "The token has expired. Please refresh your token or log in again."
+  }
+  ```
+  - HTTP Status: `401 Unauthorized`
+
+- **JWT không hợp lệ**:
+  ```json
+  {
+    "error": "invalid_token",
+    "message": "The token is invalid or malformed."
+  }
+  ```
+  - HTTP Status: `401 Unauthorized`
+
+- **JWT bị sửa đổi**:
+  ```json
+  {
+    "error": "tampered_token",
+    "message": "The token has been tampered with and is not trusted."
+  }
+  ```
+  - HTTP Status: `401 Unauthorized`
+
+- **JWT thiếu**:
+  ```json
+  {
+    "error": "missing_token",
+    "message": "No token provided in the request."
+  }
+  ```
+  - HTTP Status: `401 Unauthorized`
+
+- **JWT không được hỗ trợ**:
+  ```json
+  {
+    "error": "unsupported_token",
+    "message": "The token uses an unsupported algorithm."
+  }
+  ```
+  - HTTP Status: `401 Unauthorized`
+
+- **JWT không đủ quyền**:
+  ```json
+  {
+    "error": "insufficient_scope",
+    "message": "The token does not have the required permissions to access this resource."
+  }
+  ```
+  - HTTP Status: `403 Forbidden`
+
+- **JWT bị thu hồi**:
+  ```json
+  {
+    "error": "revoked_token",
+    "message": "The token has been revoked. Please log in again."
+  }
+  ```
+  - HTTP Status: `401 Unauthorized`
+
+### 3. Đề xuất hành động cho client
+Tùy thuộc vào loại lỗi, client nên thực hiện các hành động phù hợp để xử lý tình huống một cách mượt mà và an toàn. Dưới đây là các đề xuất:
+
+- **JWT hết hạn**:
+  - **Hành động**: 
+    - Tự động làm mới token nếu có refresh token (gửi yêu cầu đến endpoint `/refresh-token`).
+    - Nếu không có refresh token hoặc làm mới thất bại, chuyển hướng người dùng đến trang đăng nhập và hiển thị thông báo như: "Phiên của bạn đã hết hạn, vui lòng đăng nhập lại."
+  - **Ví dụ**: 
+    ```javascript
+    if (response.status === 401 && response.data.error === "token_expired") {
+      try {
+        const newToken = await refreshToken();
+        retryOriginalRequest(newToken);
+      } catch (error) {
+        logoutUser();
+        redirectToLoginPage();
+        showNotification("Session expired. Please log in again.");
+      }
+    }
+    ```
+
+- **JWT không hợp lệ hoặc bị sửa đổi**:
+  - **Hành động**:
+    - Đăng xuất người dùng ngay lập tức để đảm bảo an toàn.
+    - Chuyển hướng đến trang đăng nhập.
+    - Hiển thị thông báo lỗi chung như: "Phiên không hợp lệ, vui lòng đăng nhập lại."
+  - **Ví dụ**:
+    ```javascript
+    if (response.status === 401 && response.data.error === "invalid_token") {
+      logoutUser();
+      redirectToLoginPage();
+      showNotification("Invalid session. Please log in again.");
+    }
+    ```
+
+- **JWT thiếu**:
+  - **Hành động**:
+    - Chuyển hướng người dùng đến trang đăng nhập.
+    - Hiển thị thông báo: "Vui lòng đăng nhập để tiếp tục."
+  - **Ví dụ**:
+    ```javascript
+    if (response.status === 401 && response.data.error === "missing_token") {
+      redirectToLoginPage();
+      showNotification("Please log in to continue.");
+    }
+    ```
+
+- **JWT không được hỗ trợ**:
+  - **Hành động**:
+    - Hiển thị thông báo lỗi kỹ thuật: "Lỗi xác thực, vui lòng liên hệ hỗ trợ."
+    - Có thể ghi log lỗi để báo cáo cho đội ngũ phát triển.
+    - Đăng xuất người dùng và chuyển hướng đến trang đăng nhập.
+  - **Ví dụ**:
+    ```javascript
+    if (response.status === 401 && response.data.error === "unsupported_token") {
+      logoutUser();
+      redirectToLoginPage();
+      showNotification("Authentication error. Please contact support.");
+      logErrorToService(response.data);
+    }
+    ```
+
+- **JWT không đủ quyền**:
+  - **Hành động**:
+    - Hiển thị thông báo: "Bạn không có quyền truy cập tài nguyên này."
+    - Chuyển hướng người dùng về trang chính hoặc trang phù hợp.
+    - Không đăng xuất người dùng vì token vẫn hợp lệ.
+  - **Ví dụ**:
+    ```javascript
+    if (response.status === 403 && response.data.error === "insufficient_scope") {
+      redirectToHomePage();
+      showNotification("You do not have permission to access this resource.");
+    }
+    ```
+
+- **JWT bị thu hồi**:
+  - **Hành động**:
+    - Đăng xuất người dùng ngay lập tức.
+    - Chuyển hướng đến trang đăng nhập.
+    - Hiển thị thông báo: "Phiên của bạn đã bị thu hồi, vui lòng đăng nhập lại."
+  - **Ví dụ**:
+    ```javascript
+    if (response.status === 401 && response.data.error === "revoked_token") {
+      logoutUser();
+      redirectToLoginPage();
+      showNotification("Your session has been revoked. Please log in again.");
+    }
+    ```
+
+### 4. Lưu ý thêm
+- **Tính bảo mật**: Client không nên tiết lộ thông tin chi tiết về lỗi JWT cho người dùng cuối, đặc biệt với lỗi "invalid_token" hoặc "tampered_token", để tránh cung cấp thông tin cho kẻ tấn công.
+- **Làm mới token tự động**: Nếu hệ thống hỗ trợ refresh token, client nên triển khai cơ chế tự động làm mới token trước khi hết hạn để cải thiện trải nghiệm người dùng.
+- **Ghi log lỗi**: Client nên gửi log lỗi (như invalid token hoặc tampered token) đến server để phân tích và phát hiện các hành vi đáng ngờ.
+- **Xử lý đồng bộ**: Đảm bảo client xử lý lỗi đồng bộ trên tất cả các yêu cầu API để tránh trạng thái không nhất quán (ví dụ: một số yêu cầu thành công, một số thất bại).
+
